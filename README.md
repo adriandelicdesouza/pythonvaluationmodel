@@ -15,11 +15,17 @@ This repository documents my end-to-end journey building Python tools for valuin
 ## Project Structure
 
 | Phase 1 | Python Foundations | Financial math & core Python |
+
 | Phase 2 | Financial Data | Working with stock datasets |
+
 | Phase 3 | Statements & Ratios | Turning accounting into metrics |
+
 | Phase 4 | DCF Modeling | Intrinsic value calculator |
+
 | Phase 5 | Data Automation | Pulling market data via APIs |
+
 | Phase 6 | Comparables | Relative valuation models |
+
 | Phase 7 | Portfolio Tool | Multi-stock valuation system |
 
 ## Final Goal

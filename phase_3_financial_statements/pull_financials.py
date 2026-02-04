@@ -3,17 +3,20 @@ import pandas as pd
 import datetime as dt
 import os
 
-def get_cashflow(ticker):
+def get_info(ticker):
     stock = yf.Ticker(ticker)
-    cashflow = stock.cashflow
-    return cashflow
+    info = stock.info
+    return info
 def main():
     ticker = input("Enter stock ticker: ").upper()
     try:
-        cashflow = get_cashflow(ticker)
-        operating_cashflow = cashflow.loc["Operating Cash Flow"]
-        print(operating_cashflow)
+        info = get_info(ticker)
+        for key, value in info.items():
+            print(f"{key}: {value}")
+        print(f"\n")
+        print(f"Long Name: {info.get('longName', 'N/A')}")
+        print(f"Listed On: {info.get('exchange', 'N/A')}")
     except Exception as e:
-        print(f"Error retrieving cashflow for {ticker}: {e}")
+        print(f"Error retrieving info for {ticker}: {e}")
 if __name__ == "__main__":
     main()

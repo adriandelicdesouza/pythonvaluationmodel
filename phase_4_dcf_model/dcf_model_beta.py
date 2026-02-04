@@ -116,45 +116,18 @@ def get_dcf_value(ticker, wacc, high_growth, low_growth, years_high, years_total
     return dcf_per_share, enterprise_value, pv_terminal
 
 
-def compute_wacc():
-    print("WACC Calculation Initialized")
-    input("Press Enter to continue...")
+def compute_wacc(equity_value, debt_value, cost_of_equity, cost_of_debt, tax_rate):
+    after_tax_debt_cost = cost_of_debt * (1 - tax_rate)
 
-    # --- User Inputs ---
-    t_interest_expense = float(input("Enter Total Interest Expense: "))
-    t_debt = float(input("Enter Total Debt: "))
-    tax_rate = float(input("Enter Tax Rate (as decimal): "))
-    rf = float(input("Enter Risk-Free Rate (as decimal): "))
-    beta = float(input("Enter Beta: "))
-    rm = float(input("Enter Market Rate of Return (as decimal): "))
-    price = float(input("Enter Price per Share: "))
-    shares_outstanding = float(input("Enter Shares Outstanding: "))
-    d = float(input("Enter Market Value of Debt: "))
+    total_value = equity_value + debt_value
+    we = equity_value / total_value
+    wd = debt_value / total_value
 
-    # --- Market Value of Equity ---
-    e_val = price * shares_outstanding
-    print(f"Market Value of Equity (E) = {e_val}")
+    wacc_val = (we * cost_of_equity) + (wd * after_tax_debt_cost)
 
-    # --- Cost of Debt ---
-    kd_val = (t_interest_expense / t_debt) * (1 - tax_rate)
-    print(f"After-Tax Cost of Debt (kd) = {kd_val}")
-
-    # --- Cost of Equity (CAPM) ---
-    ke_val = rf + beta * (rm - rf)
-    print(f"Cost of Equity (ke) = {ke_val}")
-
-    # --- Capital Structure Weights ---
-    v = e_val + d
-    we = e_val / v
-    wd = d / v
-    print(f"Weight of Equity (we) = {we}")
-    print(f"Weight of Debt (wd) = {wd}")
-
-    # --- WACC ---
-    wacc_val = (we * ke_val) + (wd * kd_val)
-    print(f"Weighted Average Cost of Capital (WACC) = {wacc_val * 100:.2f}%")
-
+    print(f"WACC = {wacc_val*100:.2f}%")
     return wacc_val
+
 
 def sensitivity_analysis(ticker, wacc, high_growth, low_growth, years_high, years_total, tax_rate):
     wacc_range = [wacc - 0.01, wacc, wacc + 0.01]
@@ -191,7 +164,7 @@ def main():
     # Read Excel, first row is data
     df = pd.read_excel("watchlist.xlsx", header=None)
     # Get tickers from first column safely
-    tickers = df.iloc[:, 0].astype(str).str.upper().tolist()
+    tickers = ['aapl']
     print("Tickers:", tickers)
     years = int(input("Enter the number of years for projection (e.g., 5): "))
     results = []

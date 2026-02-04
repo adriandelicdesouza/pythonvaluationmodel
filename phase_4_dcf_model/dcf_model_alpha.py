@@ -1,5 +1,6 @@
 import yfinance as yf
 import pandas as pd
+import datetime as dt
 def get_fcf(stock):
     """Return the most recent free cash flow from yfinance Ticker object."""
     cashflow = stock.cashflow
@@ -55,20 +56,13 @@ def get_dcf_value(ticker, discount_rate, growth_rate, years):
     return dcf_per_share
 
 def main():
-    import pandas as pd
-    import yfinance as yf
-
     # Read Excel, first row is data
     df = pd.read_excel("watchlist.xlsx", header=None)
 
     # Get tickers from first column safely
     tickers = df.iloc[:, 0].astype(str).str.upper().tolist()
     print("Tickers:", tickers)
-
-    discount_rate = float(input("Enter the assumed discount rate in decimal: "))
-    growth_rate = float(input("Enter the assumed growth rate in decimal: "))
-    years = int(input("Enter the number of years "))
-
+    years = int(input("Enter the number of years for projection (e.g., 5): "))
     results = []
     for ticker in tickers:
         try:
@@ -76,7 +70,8 @@ def main():
             current_price = stock.info.get('currentPrice')
             if current_price is None:
                 raise ValueError("Current price missing")
-
+            discount_rate = float(input(f"Enter the assumed discount rate in decimal for {ticker}: "))
+            growth_rate = float(input(f"Enter the assumed growth rate in decimal for {ticker}: "))
             dcf_value = get_dcf_value(ticker, discount_rate, growth_rate, years)
             upside = ((dcf_value - current_price) / current_price) * 100
 
@@ -93,7 +88,8 @@ def main():
 
     df_out = pd.DataFrame(results)
     print(df_out)
-    df_out.to_csv("valuation.csv", index=False)
+    date = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    df_out.to_csv(f"{date} valuation.csv", index=False)
     print("Saved to valuation.csv")
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ from matplotlib import ticker
 import yfinance as yf
 import pandas as pd
 import datetime as dt
-import os as os
+import os
 
 def project_fcf(fcf,high_growth,low_growth,high_years,total_years):
     cashflows = []
@@ -33,12 +33,8 @@ def get_fcf(stock):
     if cashflow.empty:
         raise ValueError("No cashflow data available")
 
-    # Possible labels for CFO
     cfo_labels = [
-        'Total Cash From Operating Activities',
-        'Operating Cash Flow',
-        'Net Cash Provided By Operating Activities',
-        'Net Cash Provided by Operating Activities'
+        'Cash Flow From Continuing Operating Activities'
     ]
     cfo = None
     for label in cfo_labels:
@@ -48,7 +44,7 @@ def get_fcf(stock):
         break
     if cfo is None:
         raise ValueError("Operating cash flow not found")
-    # CapEx
+
     capex_labels = [
     'Capital Expenditures',
     'Capital Expenditure',
@@ -56,6 +52,15 @@ def get_fcf(stock):
     'Purchases Of Property And Equipment'
     ]
     capex = 0
+    revenue_labels = ['Total Revenue', 'Revenue']
+    revenue = None
+    for label in revenue_labels:
+        if label in cashflow.index:
+            revenue_series = cashflow.loc[label].dropna().head(3)
+            revenue = revenue_series.mean()
+        break
+
+
     for label in capex_labels:
         if label in cashflow.index:
             capex_series = cashflow.loc[label].dropna().head(3)

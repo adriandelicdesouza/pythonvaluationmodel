@@ -34,23 +34,33 @@ def get_fcf(stock):
         raise ValueError("No cashflow data available")
 
     # Possible labels for CFO
-    cfo_labels = ['Total Cash From Operating Activities', 'Operating Cash Flow']
+    cfo_labels = [
+        'Total Cash From Operating Activities',
+        'Operating Cash Flow',
+        'Net Cash Provided By Operating Activities',
+        'Net Cash Provided by Operating Activities'
+    ]
     cfo = None
     for label in cfo_labels:
         if label in cashflow.index:
-            # Take the first valid number in that row
-            cfo = cashflow.loc[label].dropna().iloc[0]
-            break
+            cfo_series = cashflow.loc[label].dropna().head(3)
+            cfo = cfo_series.mean()
+        break
     if cfo is None:
         raise ValueError("Operating cash flow not found")
-
     # CapEx
-    capex_labels = ['Capital Expenditures']
+    capex_labels = [
+    'Capital Expenditures',
+    'Capital Expenditure',
+    'Purchase Of Property Plant Equipment',
+    'Purchases Of Property And Equipment'
+    ]
     capex = 0
     for label in capex_labels:
         if label in cashflow.index:
-            capex = cashflow.loc[label].dropna().iloc[0]
-            break
+            capex_series = cashflow.loc[label].dropna().head(3)
+            capex = capex_series.mean()
+        break
 
     fcf = cfo + capex
     if fcf == 0 or fcf is None:
@@ -104,7 +114,8 @@ def get_dcf_value(ticker, wacc, high_growth, low_growth, years_high, years_total
 
 def compute_wacc(equityValue,debtValue, costOfEquity, costOfDebt, taxRate):
     totalValue = equityValue + debtValue
-    wacc = (equityValue / totalValue) * costOfEquity + (debtValue / totalValue) * costOfDebt * (1 - taxRate)
+    # wacc = (equityValue / totalValue) * costOfEquity + (debtValue / totalValue) * costOfDebt * (1 - taxRate)
+    wacc = float(input("Enter WACC in decimal (e.g., 0.08 for 8%): "))
     print(f"WACC:{wacc*100:.2f}%")
     return wacc
 

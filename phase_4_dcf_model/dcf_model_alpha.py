@@ -33,6 +33,9 @@ def get_fcf(stock):
     return fcf
 
 def get_dcf_value(ticker, discount_rate, growth_rate, years):
+    """
+    Returns DCF per share
+    """
     stock = yf.Ticker(ticker)
     try:
         fcf = get_fcf(stock)
@@ -42,28 +45,56 @@ def get_dcf_value(ticker, discount_rate, growth_rate, years):
     except Exception as e:
         raise ValueError(f"Error fetching financials for {ticker}: {e}")
 
+    # Calculate present value of projected FCF
     pv = 0
     for year in range(1, years + 1):
         projected = fcf * ((1 + growth_rate) ** year)
         pv += projected / ((1 + discount_rate) ** year)
 
-    return pv / shares
+    dcf_per_share = pv / shares
+    return dcf_per_share
 
 def main():
-    tickers = input("Enter tickers separated by commas: ").upper().split(",")
+    import pandas as pd
+    import yfinance as yf
+
+    # Read Excel, first row is data
+    df = pd.read_excel("watchlist.xlsx", header=None)
+
+    # Get tickers from first column safely
+    tickers = df.iloc[:, 0].astype(str).str.upper().tolist()
+    print("Tickers:", tickers)
+
     discount_rate = float(input("Enter the assumed discount rate in decimal: "))
     growth_rate = float(input("Enter the assumed growth rate in decimal: "))
     years = int(input("Enter the number of years "))
+
     results = []
     for ticker in tickers:
         try:
-            value = get_dcf_value(ticker,discount_rate,growth_rate,years)
-            results.append({'Ticker':ticker,'DCF Value':value})
+            stock = yf.Ticker(ticker)
+            current_price = stock.info.get('currentPrice')
+            if current_price is None:
+                raise ValueError("Current price missing")
+
+            dcf_value = get_dcf_value(ticker, discount_rate, growth_rate, years)
+            upside = ((dcf_value - current_price) / current_price) * 100
+
+            print(f"{ticker} computed")
+            results.append({
+                'Ticker': ticker,
+                'Current Price': current_price,
+                'DCF Value': round(dcf_value, 2),
+                'Upside (%)': round(upside, 2)
+            })
+
         except Exception as e:
-            print(f"Skpping {ticker} due to error {e}")
-    df = pd.DataFrame(results)
-    print(df)
-    df.to_csv("valuation.csv",index=False)
+            print(f"Skipping {ticker} due to error: {e}")
+
+    df_out = pd.DataFrame(results)
+    print(df_out)
+    df_out.to_csv("valuation.csv", index=False)
     print("Saved to valuation.csv")
+
 if __name__ == "__main__":
     main()

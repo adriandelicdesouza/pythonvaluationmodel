@@ -1,10 +1,32 @@
+from matplotlib import ticker
 import yfinance as yf
 import pandas as pd
 import datetime as dt
 import os as os
 
+def project_fcf(fcf,high_growth,low_growth,high_years,total_years):
+    cashflows = []
+    current_fcf = fcf
+    for year in range(1, total_years + 1):
+        if year <= high_years:
+            growth = high_growth
+        else:
+            growth = low_growth
+        current_fcf *= (1 + growth)
+        cashflows.append(current_fcf)
+    return cashflows
+def get_cost_of_equity(stock, risk_free=0.04, market_return=0.10):
+    beta = stock.info.get('beta', 1)
+    return risk_free + beta * (market_return - risk_free)
+def get_cost_of_debt(stock):
+    fin = stock.financials
+    debt = stock.info.get("totalDebt", 0)
+
+    if "Interest Expense" in fin.index and debt > 0:
+        interest = abs(fin.loc["Interest Expense"].dropna().iloc[0])
+        return interest / debt
+    return 0.05  # fallback
 def get_fcf(stock):
-    """Return the most recent free cash flow from yfinance Ticker object."""
     cashflow = stock.cashflow
 
     if cashflow.empty:
@@ -35,25 +57,46 @@ def get_fcf(stock):
         raise ValueError("FCF is zero or missing")
 
     return fcf
-
-def get_dcf_value(ticker, discount_rate, growth_rate, years):
+def get_dcf_value(ticker, wacc, high_growth, low_growth, years_high, years_total, tax_rate):
     stock = yf.Ticker(ticker)
+
     try:
         fcf = get_fcf(stock)
         shares = stock.info.get('sharesOutstanding')
+        cash = stock.info.get("totalCash", 0)
+        debt = stock.info.get("totalDebt", 0)
+
         if shares is None or shares == 0:
             raise ValueError("Shares outstanding missing or zero")
+
     except Exception as e:
         raise ValueError(f"Error fetching financials for {ticker}: {e}")
 
-    # Calculate present value of projected FCF
-    pv = 0
-    for year in range(1, years + 1):
-        projected = fcf * ((1 + growth_rate) ** year)
-        pv += projected / ((1 + discount_rate) ** year)
+    # --- Project cash flows (multi-stage) ---
+    cashflows = project_fcf(fcf, high_growth, low_growth, years_high, years_total)
 
-    dcf_per_share = pv / shares
-    return dcf_per_share
+    # --- Discount projected cash flows ---
+    pv_fcf = 0
+    for year, cf in enumerate(cashflows, start=1):
+        pv_fcf += cf / ((1 + wacc) ** year)
+
+    # --- Terminal Value (Gordon Growth) ---
+    terminal_fcf = cashflows[-1] * (1 + low_growth)
+
+    if low_growth >= wacc:
+        raise ValueError("Terminal growth must be less than WACC")
+
+    terminal_value = terminal_fcf / (wacc - low_growth)
+    pv_terminal = terminal_value / ((1 + wacc) ** years_total)
+
+    enterprise_value = pv_fcf + pv_terminal
+
+    # --- Convert Enterprise Value → Equity Value ---
+    equity_value = enterprise_value + cash - debt
+
+    dcf_per_share = equity_value / shares
+    return dcf_per_share, enterprise_value, pv_terminal
+
 
 def compute_wacc(equityValue,debtValue, costOfEquity, costOfDebt, taxRate):
     totalValue = equityValue + debtValue
@@ -64,7 +107,6 @@ def compute_wacc(equityValue,debtValue, costOfEquity, costOfDebt, taxRate):
 def main():
     # Read Excel, first row is data
     df = pd.read_excel("watchlist.xlsx", header=None)
-
     # Get tickers from first column safely
     tickers = df.iloc[:, 0].astype(str).str.upper().tolist()
     print("Tickers:", tickers)
@@ -78,20 +120,35 @@ def main():
                 raise ValueError("Current price missing")
             equityValue = stock.info.get('marketCap')
             debtValue = stock.info.get('totalDebt', 0)
-            costOfEquity = float(input(f"Enter the cost of equity in decimal for {ticker}: "))
-            costOfDebt = float(input(f"Enter the cost of debt in decimal for {ticker}: "))
+            costOfEquity = get_cost_of_equity(stock)
+            costOfDebt = get_cost_of_debt(stock)
             taxRate = float(input(f"Enter the tax rate in decimal for {ticker}: "))
-            discount_rate = compute_wacc(equityValue, debtValue, costOfEquity, costOfDebt, taxRate)
-            growth_rate = float(input(f"Enter the assumed growth rate in decimal for {ticker}: "))
-            dcf_value = get_dcf_value(ticker, discount_rate, growth_rate, years)
+            discount_rate = compute_wacc(equityValue, debtValue, costOfEquity, costOfDebt, taxRate) 
+            high_growth = float(input(f"High growth rate (years 1-5) for {ticker}: "))
+            low_growth = float(input(f"Stable terminal growth rate for {ticker}: "))
+            years_high = int(input("Years of high growth (e.g., 5): "))
+            years_total = int(input("Total projection years (e.g., 10): "))
+
+            dcf_value, enterprise_value, terminal_value = get_dcf_value(
+            ticker, discount_rate, high_growth, low_growth, years_high, years_total, taxRate
+            )
+
             upside = ((dcf_value - current_price) / current_price) * 100
 
+
+
             print(f"{ticker} computed")
+            mos_price = dcf_value * 0.75
+            terminal_weight = terminal_value / enterprise_value * 100
+
             results.append({
-                'Ticker': ticker,
-                'Current Price': current_price,
-                'DCF Value': round(dcf_value, 2),
-                'Upside (%)': round(upside, 2)
+            'Ticker': ticker,
+            'Price': current_price,
+            'DCF Value': round(dcf_value, 2),
+            'Upside %': round(upside, 2),
+            'MOS Price (25%)': round(mos_price, 2),
+            'WACC %': round(discount_rate * 100, 2),
+            'Terminal Value % of EV': round(terminal_weight, 1)
             })
 
         except Exception as e:
@@ -103,7 +160,6 @@ def main():
     output_dir = r"C:\Users\delic\OneDrive\Desktop\pythonvaluationmodel\valuations"
     os.makedirs(output_dir, exist_ok=True)
     file_path = os.path.join(output_dir, f"{date}_valuation.csv")
-    dt.date
     df_out.to_csv(file_path, index=False)
     print(f"Saved to {file_path}")
 

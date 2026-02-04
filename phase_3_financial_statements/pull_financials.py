@@ -11,7 +11,8 @@ def main():
     ticker = input("Enter stock ticker: ").upper()
     try:
         cashflow = get_cashflow(ticker)
-        print(cashflow)
+        operating_cashflow = cashflow.loc["Operating Cash Flow"]
+        print(operating_cashflow)
     except Exception as e:
         print(f"Error retrieving cashflow for {ticker}: {e}")
 if __name__ == "__main__":

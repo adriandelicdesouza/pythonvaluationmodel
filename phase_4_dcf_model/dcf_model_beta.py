@@ -74,7 +74,7 @@ def get_fcf(stock):
     return fcf
 def get_dcf_value(ticker, wacc, high_growth, low_growth, years_high, years_total, tax_rate):
     stock = yf.Ticker(ticker)
-
+    print(stock.info["displayName"])
     try:
         fcf = get_fcf(stock)
         print(f"FCF: {fcf}")

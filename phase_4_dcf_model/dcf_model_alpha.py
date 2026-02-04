@@ -15,8 +15,9 @@ def project_fcf(fcf,high_growth,low_growth,high_years,total_years):
         current_fcf *= (1 + growth)
         cashflows.append(current_fcf)
     return cashflows
-def get_cost_of_equity(stock, risk_free=0.04, market_return=0.10):
+def get_cost_of_equity(stock, risk_free, market_return=0.10):
     beta = stock.info.get('beta', 1)
+    print(f"Beta: {beta}")
     return risk_free + beta * (market_return - risk_free)
 def get_cost_of_debt(stock):
     fin = stock.financials
@@ -39,7 +40,6 @@ def get_fcf(stock):
         if label in cashflow.index:
             # Take the first valid number in that row
             cfo = cashflow.loc[label].dropna().iloc[0]
-            print(f"CFO found using label '{label}': {cfo}")
             break
     if cfo is None:
         raise ValueError("Operating cash flow not found")
@@ -104,6 +104,37 @@ def compute_wacc(equityValue,debtValue, costOfEquity, costOfDebt, taxRate):
     print(f"WACC:{wacc*100:.2f}%")
     return wacc
 
+def sensitivity_analysis(ticker, wacc, high_growth, low_growth, years_high, years_total, tax_rate):
+    wacc_range = [wacc - 0.01, wacc, wacc + 0.01]
+    growth_range = [low_growth - 0.005, low_growth, low_growth + 0.005]
+
+    results = {}
+
+    for g in growth_range:
+        row = []
+        for r in wacc_range:
+            try:
+                value, _, _ = get_dcf_value(
+                    ticker,
+                    r,
+                    high_growth,
+                    g,
+                    years_high,
+                    years_total,
+                    tax_rate
+                )
+                row.append(round(value, 2))
+            except:
+                row.append(None)
+        results[f"g={round(g*100,2)}%"] = row
+
+    df = pd.DataFrame(
+        results,
+        index=[f"WACC {round(r*100,2)}%" for r in wacc_range]
+    )
+
+    return df
+
 def main():
     # Read Excel, first row is data
     df = pd.read_excel("watchlist.xlsx", header=None)
@@ -112,26 +143,49 @@ def main():
     print("Tickers:", tickers)
     years = int(input("Enter the number of years for projection (e.g., 5): "))
     results = []
+    risk_free = yf.Ticker("^TNX").history(period="1d")["Close"].iloc[-1] / 100
+    print(f"Risk-free rate: {risk_free*100:.2f}%")
     for ticker in tickers:
         try:
             stock = yf.Ticker(ticker)
             current_price = stock.info.get('currentPrice')
+            print(f"${current_price}")
             if current_price is None:
                 raise ValueError("Current price missing")
             equityValue = stock.info.get('marketCap')
+            print(f"Equity Value ${equityValue}")
+            print(equityValue)
             debtValue = stock.info.get('totalDebt', 0)
-            costOfEquity = get_cost_of_equity(stock)
+            print(f"Debt Value ${debtValue}")
+            print(debtValue)
+            costOfEquity = get_cost_of_equity(stock, risk_free)
+            print(f"Cost of Equity {costOfEquity*100:.2f}%")
+            print(costOfEquity)
             costOfDebt = get_cost_of_debt(stock)
+            print(f"Cost of Debt {costOfDebt*100:.2f}%")
+            print(costOfDebt)
             taxRate = float(input(f"Enter the tax rate in decimal for {ticker}: "))
-            discount_rate = compute_wacc(equityValue, debtValue, costOfEquity, costOfDebt, taxRate) 
-            high_growth = float(input(f"High growth rate (years 1-5) for {ticker}: "))
-            low_growth = float(input(f"Stable terminal growth rate for {ticker}: "))
-            years_high = int(input("Years of high growth (e.g., 5): "))
+            discount_rate = compute_wacc(equityValue, debtValue, costOfEquity, costOfDebt, taxRate)
+            high_growth = float(input(f"High growth rate for {ticker}: "))
+            low_growth = float(input(f"Terminal growth rate (g) for {ticker}: "))
+            years_high = int(input("Years of high growth (typically 5 years): "))
             years_total = int(input("Total projection years (e.g., 10): "))
 
             dcf_value, enterprise_value, terminal_value = get_dcf_value(
             ticker, discount_rate, high_growth, low_growth, years_high, years_total, taxRate
             )
+            sens_df = sensitivity_analysis(
+            ticker,
+            discount_rate,
+            high_growth,
+            low_growth,
+            years_high,
+            years_total,
+            taxRate
+            )
+
+            print("\nSensitivity Analysis (Value per Share):")
+            print(sens_df)
 
             upside = ((dcf_value - current_price) / current_price) * 100
 

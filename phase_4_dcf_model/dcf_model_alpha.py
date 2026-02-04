@@ -100,8 +100,12 @@ def main():
     df_out = pd.DataFrame(results)
     print(df_out)
     date = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    df_out.to_csv(f"{date} valuation.csv", index=False)
-    print(f"Saved to {date} valuation.csv")
+    output_dir = r"C:\Users\delic\OneDrive\Desktop\pythonvaluationmodel\valuations"
+    os.makedirs(output_dir, exist_ok=True)
+    file_path = os.path.join(output_dir, f"{date}_valuation.csv")
+    dt.date
+    df_out.to_csv(file_path, index=False)
+    print(f"Saved to {file_path}")
 
 if __name__ == "__main__":
     main()

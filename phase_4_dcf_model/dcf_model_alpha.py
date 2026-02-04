@@ -1,6 +1,8 @@
 import yfinance as yf
 import pandas as pd
 import datetime as dt
+import os as os
+
 def get_fcf(stock):
     """Return the most recent free cash flow from yfinance Ticker object."""
     cashflow = stock.cashflow

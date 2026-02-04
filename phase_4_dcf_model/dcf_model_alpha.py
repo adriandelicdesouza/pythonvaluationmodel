@@ -15,6 +15,7 @@ def get_fcf(stock):
         if label in cashflow.index:
             # Take the first valid number in that row
             cfo = cashflow.loc[label].dropna().iloc[0]
+            print(f"CFO found using label '{label}': {cfo}")
             break
     if cfo is None:
         raise ValueError("Operating cash flow not found")
@@ -34,9 +35,6 @@ def get_fcf(stock):
     return fcf
 
 def get_dcf_value(ticker, discount_rate, growth_rate, years):
-    """
-    Returns DCF per share
-    """
     stock = yf.Ticker(ticker)
     try:
         fcf = get_fcf(stock)
@@ -55,6 +53,12 @@ def get_dcf_value(ticker, discount_rate, growth_rate, years):
     dcf_per_share = pv / shares
     return dcf_per_share
 
+def compute_wacc(equityValue,debtValue, costOfEquity, costOfDebt, taxRate):
+    totalValue = equityValue + debtValue
+    wacc = (equityValue / totalValue) * costOfEquity + (debtValue / totalValue) * costOfDebt * (1 - taxRate)
+    print(f"WACC:{wacc*100:.2f}%")
+    return wacc
+
 def main():
     # Read Excel, first row is data
     df = pd.read_excel("watchlist.xlsx", header=None)
@@ -70,7 +74,12 @@ def main():
             current_price = stock.info.get('currentPrice')
             if current_price is None:
                 raise ValueError("Current price missing")
-            discount_rate = float(input(f"Enter the assumed discount rate in decimal for {ticker}: "))
+            equityValue = stock.info.get('marketCap')
+            debtValue = stock.info.get('totalDebt', 0)
+            costOfEquity = float(input(f"Enter the cost of equity in decimal for {ticker}: "))
+            costOfDebt = float(input(f"Enter the cost of debt in decimal for {ticker}: "))
+            taxRate = float(input(f"Enter the tax rate in decimal for {ticker}: "))
+            discount_rate = compute_wacc(equityValue, debtValue, costOfEquity, costOfDebt, taxRate)
             growth_rate = float(input(f"Enter the assumed growth rate in decimal for {ticker}: "))
             dcf_value = get_dcf_value(ticker, discount_rate, growth_rate, years)
             upside = ((dcf_value - current_price) / current_price) * 100

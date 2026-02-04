@@ -1,4 +1,3 @@
-from matplotlib import ticker
 import yfinance as yf
 import pandas as pd
 import datetime as dt
@@ -140,12 +139,9 @@ def sensitivity_analysis(ticker, wacc, high_growth, low_growth, years_high, year
     return df
 
 def main():
-    # Read Excel, first row is data
     df = pd.read_excel("watchlist.xlsx", header=None)
-    # Get tickers from first column safely
     tickers = df.iloc[:, 0].astype(str).str.upper().tolist()
     print("Tickers:", tickers)
-    years = int(input("Enter the number of years for projection (e.g., 5): "))
     results = []
     risk_free = yf.Ticker("^TNX").history(period="1d")["Close"].iloc[-1] / 100
     print(f"Risk-free rate: {risk_free*100:.2f}%")
@@ -153,21 +149,17 @@ def main():
         try:
             stock = yf.Ticker(ticker)
             current_price = stock.info.get('currentPrice')
-            print(f"${current_price}")
+            print(f"Current Price ${current_price}")
             if current_price is None:
                 raise ValueError("Current price missing")
             equityValue = stock.info.get('marketCap')
             print(f"Equity Value ${equityValue}")
-            print(equityValue)
             debtValue = stock.info.get('totalDebt', 0)
             print(f"Debt Value ${debtValue}")
-            print(debtValue)
             costOfEquity = get_cost_of_equity(stock, risk_free)
             print(f"Cost of Equity {costOfEquity*100:.2f}%")
-            print(costOfEquity)
             costOfDebt = get_cost_of_debt(stock)
             print(f"Cost of Debt {costOfDebt*100:.2f}%")
-            print(costOfDebt)
             taxRate = float(input(f"Enter the tax rate in decimal for {ticker}: "))
             discount_rate = compute_wacc(equityValue, debtValue, costOfEquity, costOfDebt, taxRate)
             high_growth = float(input(f"High growth rate for {ticker}: "))

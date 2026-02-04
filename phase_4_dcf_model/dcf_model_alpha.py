@@ -90,7 +90,7 @@ def main():
     print(df_out)
     date = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     df_out.to_csv(f"{date} valuation.csv", index=False)
-    print(f"Saved to {date}valuation.csv")
+    print(f"Saved to {date} valuation.csv")
 
 if __name__ == "__main__":
     main()

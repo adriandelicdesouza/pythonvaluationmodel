@@ -14,29 +14,6 @@ def initialize():
 
     return interest_expense, t_debt, tax_rate, rf, beta, rm, price, shares_outstanding
 
-def sensitivity_analysis(base_inputs, var_name, var_range):
-    results = []
-    for var_value in var_range:
-        inputs = list(base_inputs)
-        if var_name == 'tax_rate':
-            inputs[2] = var_value
-        elif var_name == 'rf':
-            inputs[3] = var_value
-        elif var_name == 'beta':
-            inputs[4] = var_value
-        elif var_name == 'rm':
-            inputs[5] = var_value
-        elif var_name == 'price':
-            inputs[6] = var_value
-        elif var_name == 'shares_outstanding':
-            inputs[7] = var_value
-
-        wacc_value = wacc(*inputs)
-        results.append((var_value, wacc_value))
-
-    df = pd.DataFrame(results, columns=[var_name, 'WACC'])
-    print(df)
-    return df
 
 def market_value_of_debt(interest_expense, t_debt):
     if t_debt <= 0:
